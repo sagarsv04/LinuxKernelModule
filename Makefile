@@ -1,39 +1,15 @@
-# To build modules outside of the kernel tree, we run "make"
-# in the kernel source tree; the Makefile there then includes this
-# Makefile once again.
+# Make file for building application
 
-# This conditional selects whether we are being included from the
-# kernel Makefile or not.
-ifeq ($(KERNELRELEASE),)
+CC = gcc
+CFLAGS = -Wall -Werror
 
-	# Assume the source tree is where the running kernel was built
-	# You should set KERNELDIR in the environment if it's elsewhere
-	KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 
-	# The current directory is passed to sub-makes as argument
-	PWD := $(shell pwd)
+obj-m+=dev_ps.o
 
-modules:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
-
-modules_install:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules_install
+all:
+	make -C /lib/modules/$(shell uname -r)/build/ M=$(PWD) modules
+	$(CC) user.c $(CFLAGS) -o user
 
 clean:
-	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions Module.symvers modules.order
-
-.PHONY: modules modules_install clean
-
-else
-	# called from kernel build system: just declare what our modules are
-	obj-m := hello.o hellon.o
-endif
-
-# obj-m += hello.o
-#
-# all:
-# 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
-#
-# clean:
-# 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
-# 	rm -f *.o *.d user
+	make -C /lib/modules/$(shell uname -r)/build/ M=$(PWD) clean
+	rm -f *.o *.d user

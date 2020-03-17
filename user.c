@@ -1,4 +1,5 @@
 #include<stdlib.h>
+#include<signal.h>
 #include<string.h>
 #include<unistd.h>
 #include<stdio.h>
@@ -22,13 +23,12 @@ int main(int argc, char const *argv[]) {
 	FILE *file;
 	char *line = NULL;
 
-	printf("Starting device test code example...\n");
-	printf("This is a simple program to interact with %s.\n", DRIVER_NAME);
+	printf("This is a simple program to interact with %s\n", DRIVER_NAME);
 
 	file = fopen(DRIVER_PATH, "r");
 	if (file == NULL) {
-    perror("Failed to open path %s, of %s", DRIVER_PATH, DRIVER_NAME);
-    return errno;
+		fprintf(stderr, "Failed to open path %s, of %s\n", DRIVER_PATH, DRIVER_NAME);
+		return errno;
 	}
 	else {
 		printf("Reading from the %s\n", DRIVER_PATH);
@@ -36,17 +36,17 @@ int main(int argc, char const *argv[]) {
 		signal(SIGINT, exit_handler);
 		while (1) {
 			read = getline(&line, &len, file);
-   		if (read < 0){
-      	perror("Failed to read the message from the %s\n", DRIVER_PATH);
-      	return errno;
-   		}
+			if (read < 0){
+				fprintf(stderr, "Failed to read the message from the %s\n", DRIVER_PATH);
+				return errno;
+			}
 			else {
 				printf(">>>: %s\n", line);
 			}
 		}
-		
+
 		fclose(file);
-	  if (line) {
+		if (line) {
 			free(line);
 		}
 	}
