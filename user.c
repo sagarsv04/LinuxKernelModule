@@ -8,8 +8,6 @@
 
 #define DRIVER_NAME "Dev Character Device Driver"
 #define DRIVER_PATH "/dev/process_list"
-#define BUFFER_LENGTH 256
-
 
 void exit_handler(int signal) {
 	printf("You have presses Ctrl-C\n");
@@ -19,14 +17,16 @@ void exit_handler(int signal) {
 
 int main(int argc, char const *argv[]) {
 
-	int ret;
-	FILE, file;
-	char receive[BUFFER_LENGTH];
+	ssize_t read;
+	size_t len = 0;
+	FILE *file;
+	char *line = NULL;
+
 	printf("Starting device test code example...\n");
 	printf("This is a simple program to interact with %s.\n", DRIVER_NAME);
 
-	file = open(DRIVER_PATH, O_RDONLY);
-	if (file < 0) {
+	file = fopen(DRIVER_PATH, "r");
+	if (file == NULL) {
     perror("Failed to open path %s, of %s", DRIVER_PATH, DRIVER_NAME);
     return errno;
 	}
@@ -35,16 +35,20 @@ int main(int argc, char const *argv[]) {
 
 		signal(SIGINT, exit_handler);
 		while (1) {
-			ret = read(file, receive, BUFFER_LENGTH);
-   		if (ret < 0){
+			read = getline(&line, &len, file);
+   		if (read < 0){
       	perror("Failed to read the message from the %s\n", DRIVER_PATH);
       	return errno;
    		}
 			else {
-				printf(">>>: %s\n", receive);
+				printf(">>>: %s\n", line);
 			}
 		}
+		
+		fclose(file);
+	  if (line) {
+			free(line);
+		}
 	}
-
 	return 0;
 }
