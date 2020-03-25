@@ -25,35 +25,35 @@ static struct file_operations dev_file_op = {
 };
 
 
-int dev_open(struct inode *pinode, struct file *pfile) {
+static int dev_open(struct inode *pinode, struct file *pfile) {
 	printk(KERN_ALERT "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
 
 	return 0;
 }
 
 
-int dev_read(struct file *pfile, char __user *buffer, size_t length, loff_t *offset) {
+static int dev_read(struct file *pfile, char __user *buffer, size_t length, loff_t *offset) {
 	printk(KERN_ALERT "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
 
 	return 0;
 }
 
 
-int dev_write(struct file *pfile, const char __user *buffer, size_t length, loff_t *offset) {
+static int dev_write(struct file *pfile, const char __user *buffer, size_t length, loff_t *offset) {
 	printk(KERN_ALERT "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
 
 	return length;
 }
 
 
-int dev_close(struct inode *pinode, struct file *pfile) {
+static int dev_close(struct inode *pinode, struct file *pfile) {
 	printk(KERN_ALERT "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
 
 	return 0;
 }
 
 // called when module is installed
-int dev_module_init(void) {
+static int dev_module_init(void) {
 
 	printk(KERN_ALERT "DEV Module: Initializing the Dev Character Device Driver\n");
 
@@ -72,7 +72,7 @@ int dev_module_init(void) {
 
 
 // called when module is removed
-void dev_module_exit(void) {
+static void dev_module_exit(void) {
 
 	printk(KERN_ALERT "DEV Module: Removing the Dev Character Device Driver\n");
 	unregister_chrdev(major_number, DRIVER_NAME);
