@@ -48,6 +48,10 @@ static ssize_t dev_read(struct file *, char *, size_t, loff_t *);
 static ssize_t dev_write(struct file *, const char *, size_t, loff_t *);
 static int dev_close(struct inode *, struct file *);
 
+static void free_process_list(void);
+static void get_task_state_name(char *, long);
+static void add_process_to_list(struct task_struct *);
+
 
 static struct file_operations dev_file_op = {
 	.owner		= THIS_MODULE,
@@ -56,6 +60,13 @@ static struct file_operations dev_file_op = {
 	.write		= dev_write,
 	.release	= dev_close,
 };
+
+
+static void free_process_list() {
+	if (p_list) {
+		kfree(p_list);
+	}
+}
 
 
 static void get_task_state_name(char *state_string, long state) {
@@ -161,11 +172,42 @@ static int dev_close(struct inode *pinode, struct file *pfile) {
 }
 
 
-static void add_process_to_list(process_list * p_list, struct task_struct *task, char *state_string) {
-	p_list->next = NULL;
-	p_list->node = NULL;
-}
+static void add_process_to_list(struct task_struct *task) {
 
+	char state_string[64];
+	process_list *temp = NULL;
+	process_list *p = NULL;
+
+	for_each_process(task) {
+		get_task_state_name(state_string, task->state);
+		temp = (process_list*)kmalloc(sizeof(process_list), GFP_KERNEL);
+		if (!temp) {
+			printk(KERN_ALERT "DEV Module: Failed to initialize memory for Process List\n");
+			return;
+		}
+		temp->node = (process_node*)kmalloc(sizeof(process_node), GFP_KERNEL);
+		if (!temp->node) {
+			printk(KERN_ALERT "DEV Module: Failed to initialize memory for Process Node\n");
+			return;
+		}
+		temp->next = NULL;
+		temp->node->process_id = task->pid;
+
+		sprintf(temp->node->process_info, "PID = %8d  PPID = %8d  CPU = %4d  STATE = %s\n", task->pid, task->parent->pid, task->cpu, state_string);
+
+		if (p_list==NULL) {
+			p_list = temp;
+		}
+		else {
+			p = p_list;
+			while (p->next!=NULL) {
+				p = p->next;
+			}
+			p->next = temp;
+		}
+		number_of_processes += 1;
+	}
+}
 
 
 // called when module is installed
@@ -175,32 +217,30 @@ static int __init dev_module_init(void) {
 	// scan through the task and create a link list
 	// Kmalloc new memory if required
 	struct task_struct *task = current;
-	char state_string[64];
+	// char state_string[64];
 
-	p_list = (process_list*)kmalloc(sizeof(process_list), GFP_KERNEL);
-	if (!p_list) {
-		printk(KERN_ALERT "DEV Module: Failed to initialize memory for Process List\n");
-		return -EFAULT;
-	}
+	// p_list = (process_list*)kmalloc(sizeof(process_list), GFP_KERNEL);
+	// p_list = NULL;
+	// if (!p_list) {
+	// 	printk(KERN_ALERT "DEV Module: Failed to initialize memory for Process List\n");
+	// 	return -EFAULT;
+	// }
 
 	printk(KERN_INFO "DEV Module: Initializing the Dev Character Device Driver\n");
 
 	major_number = register_chrdev(0, DRIVER_NAME, &dev_file_op); // Registering with Kernel a Character Device Driver
 	if (major_number < 0) {
 		printk(KERN_ALERT "DEV Module: Failed to register a major number\n");
-		kfree(p_list);
 		return major_number;
 	}
 	else {
 		printk(KERN_INFO "DEV Module: Dev Character Device Driver Registered with major number %d\n", major_number);
-
 		if (task) {
-			for_each_process(task) {
-				number_of_processes += number_of_processes;
-				get_task_state_name(state_string, task->state);
-				// make link list of process
-				printk(KERN_INFO "PID = %8d  PPID = %8d  CPU = %4d  STATE = %s\n", task->pid, task->parent->pid, task->cpu, state_string);
-			}
+			// for_each_process(task) {
+				// number_of_processes += number_of_processes;
+				// get_task_state_name(state_string, task->state);
+			add_process_to_list(task);
+			printk(KERN_INFO "DEV Module: Number of Process Added to List %d\n", number_of_processes);
 		}
 	}
 	return 0;
@@ -209,11 +249,7 @@ static int __init dev_module_init(void) {
 // called when module is removed
 static void __exit dev_module_exit(void) {
 
-	// free the Kmalloc memory
-	if (p_list) {
-		kfree(p_list);
-	}
-
+	free_process_list();
 	printk(KERN_ALERT "DEV Module: Removing the Dev Character Device Driver\n");
 	unregister_chrdev(major_number, DRIVER_NAME);
 	printk(KERN_INFO "DEV Module: Goodbye From Dev Character Device Driver!\n");
