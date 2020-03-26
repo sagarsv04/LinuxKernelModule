@@ -15,6 +15,7 @@
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 
 MODULE_LICENSE("GPL");
@@ -24,11 +25,23 @@ MODULE_VERSION("1.0");
 
 
 #define DRIVER_NAME "dev_ps"
-#define STATE_LENGTH 64
+#define STATE_STR_LEN 64
+#define PROCESS_STR_LEN 128
 
 
+typedef struct process_node {
+	int process_id;
+	char process_info[PROCESS_STR_LEN];
+} process_node;
+
+typedef struct process_list {
+	process_node *node;
+	struct process_list *next;
+} process_list;
 
 static int major_number;
+static int number_of_processes;
+static process_list *p_list;
 
 static int dev_open(struct inode *, struct file *);
 static ssize_t dev_read(struct file *, char *, size_t, loff_t *);
@@ -105,16 +118,13 @@ static void get_task_state_name(char *state_string, long state) {
 	}
 }
 
-
-
-
-
-
 static int dev_open(struct inode *pinode, struct file *pfile) {
 
 	printk(KERN_INFO "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
 
 	printk(KERN_INFO "DEV Module: Hey %s function of Dev Character Device Driver\n", __FUNCTION__);
+
+	// at this point add that process into the list
 
 	return 0;
 }
@@ -145,32 +155,51 @@ static int dev_close(struct inode *pinode, struct file *pfile) {
 
 	printk(KERN_INFO "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
 
+	// at this point remove that process into the list
+
 	return 0;
 }
 
+
+static void add_process_to_list(process_list * p_list, struct task_struct *task, char *state_string) {
+	p_list->next = NULL;
+	p_list->node = NULL;
+}
+
+
+
 // called when module is installed
+
 static int __init dev_module_init(void) {
 
+	// scan through the task and create a link list
+	// Kmalloc new memory if required
 	struct task_struct *task = current;
 	char state_string[64];
 
+	p_list = (process_list*)kmalloc(sizeof(process_list), GFP_KERNEL);
+	if (!p_list) {
+		printk(KERN_ALERT "DEV Module: Failed to initialize memory for Process List\n");
+		return -EFAULT;
+	}
+
 	printk(KERN_INFO "DEV Module: Initializing the Dev Character Device Driver\n");
-	// Registering with Kernel a Character Device Driver
-	major_number = register_chrdev(0, DRIVER_NAME, &dev_file_op);
+
+	major_number = register_chrdev(0, DRIVER_NAME, &dev_file_op); // Registering with Kernel a Character Device Driver
 	if (major_number < 0) {
 		printk(KERN_ALERT "DEV Module: Failed to register a major number\n");
+		kfree(p_list);
 		return major_number;
 	}
 	else {
 		printk(KERN_INFO "DEV Module: Dev Character Device Driver Registered with major number %d\n", major_number);
 
 		if (task) {
-
-			get_task_state_name(state_string, task->state);
-
 			for_each_process(task) {
-				printk(KERN_INFO "PID = %8d  PPID = %8d  STATE = %s\n", task->pid, task->parent->pid, state_string);
-				// printk(KERN_INFO "pid: %d | pname: %s | state: %ld\n", task->pid, task->comm, task->state);
+				number_of_processes += number_of_processes;
+				get_task_state_name(state_string, task->state);
+				// make link list of process
+				printk(KERN_INFO "PID = %8d  PPID = %8d  CPU = %4d  STATE = %s\n", task->pid, task->parent->pid, task->cpu, state_string);
 			}
 		}
 	}
@@ -179,6 +208,11 @@ static int __init dev_module_init(void) {
 
 // called when module is removed
 static void __exit dev_module_exit(void) {
+
+	// free the Kmalloc memory
+	if (p_list) {
+		kfree(p_list);
+	}
 
 	printk(KERN_ALERT "DEV Module: Removing the Dev Character Device Driver\n");
 	unregister_chrdev(major_number, DRIVER_NAME);
