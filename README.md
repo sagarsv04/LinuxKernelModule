@@ -10,16 +10,6 @@ Sagar Vishwakarma (svishwa2@binghamton.edu)
 State University of New York, Binghamton
 
 
-
-TODO
-============
-- Currently I have build a demo module to understand working of kernel module
-- I will be using file_operations struct for all the file operations using the functions like dev_open, dev_read, dev_write, dev_close,
-- I will be implementing functions which will get process ID, Parent Process ID, and state of processes and writing it into /dev/process_list
-- I will create a user program which will read /dev/process_list and print all the info in user space.
-- above tasks can be achived in a week
-
-
 File-Info
 ============
 
@@ -30,12 +20,17 @@ File-Info
 
 How to compile and run
 ============
+-	Open a terminal in project directory      : make (to build both kernel and user module)
+- Load the kernel module use                : sudo insmod dev_ps.ko
+- Unload the kernel module use              : sudo rmmod dev_ps
+- Above two commands should print messages in kern.log (Use: tail -f /var/log/kern.log)
 
 
-Commands
-============
-- Load the kernel module use      : sudo insmod dev_ps.ko
-- Unload the kernel module use    : sudo rmmod dev_ps
+- To register a new device/node which will point to our dev_ps
+- cd /dev/ (dev contains nodes to all the devices on the system)
+- sudo mknod process_list c major_number 0
+- To remove node : sudo rm process_list
+
 
 Note
 ============
