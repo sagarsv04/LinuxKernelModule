@@ -38,7 +38,7 @@ typedef struct process_list {
 
 static int major_number;
 static int number_of_processes;
-static int number_of_read = 0;
+// static int number_of_read = 0;
 static process_list *p_list;
 
 static int dev_open(struct inode *, struct file *);
@@ -47,9 +47,10 @@ static ssize_t dev_write(struct file *, const char *, size_t, loff_t *);
 static int dev_close(struct inode *, struct file *);
 
 static void free_process_list(void);
-static void get_process_info(char *);
+static void get_process_info(char *, loff_t *);
 static void get_task_state_name(char *, long);
-static void add_process_to_list(struct task_struct *);
+static void create_process_list(struct task_struct *);
+static void add_to_process_list(struct task_struct *);
 
 
 static struct file_operations dev_file_op = {
@@ -130,31 +131,68 @@ static void get_task_state_name(char *state_string, long state) {
 }
 
 
-static void get_process_info(char *message) {
-
+static void get_process_info(char *message, loff_t *offset) {
+	/* Pass process Info based on how many lines already read */
+	int skip_node = (int)(*offset);
 	process_list *p = p_list;
 	if (p==NULL) {
 		printk(KERN_ALERT "DEV Module: Empty Process List\n");
-		strcpy(message, "DEV Module: Empty Process List\n");
+		strcpy(message, "EXIT_CODE\n");
 	}
 	else {
 		int i;
-		for (i = 0; (i < number_of_read)&&(i < number_of_processes); i++) {
+		for (i = 0; (i < skip_node)&&(i < number_of_processes); i++) {
 			p = p->next;
 		}
 		if (p==NULL) {
 			printk(KERN_ALERT "DEV Module: Empty Process Node\n");
-			strcpy(message, "DEV Module: Empty Process Node\n");
+			strcpy(message, "EXIT_CODE\n");
 		}
 		else {
 			strcpy(message, p->node->process_info);
-			number_of_read += 1;
+			*offset += 1;
 		}
 	}
 }
 
+static void add_to_process_list(struct task_struct *task) {
+	/* Add new process to linked list */
+	char state_string[64];
+	process_list *temp = NULL;
+	process_list *p = NULL;
 
-static void add_process_to_list(struct task_struct *task) {
+	get_task_state_name(state_string, task->state);
+	temp = (process_list*)kmalloc(sizeof(process_list), GFP_KERNEL);
+	if (!temp) {
+		printk(KERN_ALERT "DEV Module: Failed to initialize memory for Process List\n");
+		return;
+	}
+	temp->node = (process_node*)kmalloc(sizeof(process_node), GFP_KERNEL);
+	if (!temp->node) {
+		printk(KERN_ALERT "DEV Module: Failed to initialize memory for Process Node\n");
+		return;
+	}
+	temp->next = NULL;
+	temp->node->process_id = task->pid;
+
+	sprintf(temp->node->process_info, "PID = %8d  PPID = %8d  CPU = %4d  STATE = %s\n", task->pid, task->parent->pid, task->cpu, state_string);
+
+	if (p_list==NULL) {
+		p_list = temp;
+	}
+	else {
+		p = p_list;
+		while (p->next!=NULL) {
+			p = p->next;
+		}
+		p->next = temp;
+	}
+	number_of_processes += 1;
+}
+
+
+static void create_process_list(struct task_struct *task) {
+	/* Create a linked list of all the current process using task */
 
 	char state_string[64];
 	process_list *temp = NULL;
@@ -194,9 +232,13 @@ static void add_process_to_list(struct task_struct *task) {
 
 static int dev_open(struct inode *pinode, struct file *pfile) {
 
-	printk(KERN_INFO "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
+	pid_t pid;
 
-	printk(KERN_INFO "DEV Module: Hey %s function of Dev Character Device Driver\n", __FUNCTION__);
+	struct task_struct *task = current;
+	printk(KERN_INFO "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
+	add_to_process_list(task);
+	pid = task->pid;
+	printk(KERN_INFO "DEV Module: Hey Seems Process %d has arrived\n", pid);
 
 	// at this point add that process into the list
 
@@ -211,14 +253,13 @@ static ssize_t dev_read(struct file *pfile, char __user *buffer, size_t length, 
 	pid_t pid;
 
 	pid = current->pid;
-	get_process_info(message);
+	get_process_info(message, offset);
 	message_len = strlen(message);
 	printk(KERN_INFO "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
 
 	errors = copy_to_user(buffer, message, message_len);
 
-	printk(KERN_INFO "DEV Module: Exit %s function of Dev Character Device Driver PID %d\n", __FUNCTION__, pid);
-
+	printk(KERN_INFO "DEV Module: Hey Seems Process %d has Offset %lld\n", pid, *offset);
 	return errors == 0 ? message_len : -EFAULT;
 }
 
@@ -232,7 +273,7 @@ static ssize_t dev_write(struct file *pfile, const char __user *buffer, size_t l
 static int dev_close(struct inode *pinode, struct file *pfile) {
 
 	printk(KERN_INFO "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
-	number_of_read = 0;
+	// number_of_read = 0;
 	// at this point remove that process into the list
 
 	return 0;
@@ -252,7 +293,7 @@ static int __init dev_module_init(void) { // called when module is installed
 	else {
 		printk(KERN_INFO "DEV Module: Dev Character Device Driver Registered with major number %d\n", major_number);
 		if (task) {
-			add_process_to_list(task);
+			create_process_list(task);
 			printk(KERN_INFO "DEV Module: Number of Process Added to List %d\n", number_of_processes);
 		}
 	}

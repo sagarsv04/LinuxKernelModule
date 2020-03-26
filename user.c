@@ -20,7 +20,7 @@
 #define DRIVER_NAME "Dev Character Device Driver"
 #define DRIVER_PATH "/dev/process_list"
 
-#define USER_SLEEP 4
+#define USER_SLEEP 0
 
 
 void exit_handler(int signal) {
@@ -54,11 +54,17 @@ int main(int argc, char const *argv[]) {
 				return errno;
 			}
 			else {
-				printf(">>>: %s\n", line);
+				// pid_t pid = getpid();
+				if (strcmp(line, "EXIT_CODE\n")!=0) {
+					printf(">>>: %s", line);
+					// printf("Process %d sleeping for %d sec.\n", pid, USER_SLEEP);
+					sleep(USER_SLEEP);
+				}
+				else{
+					printf("Reading from the %s Completed\n", DRIVER_PATH);
+					break;
+				}
 			}
-			pid_t pid = getpid();
-			printf("Process %d sleeping for %d sec.\n", pid, USER_SLEEP);
-			sleep(USER_SLEEP);
 		}
 
 		fclose(file);
