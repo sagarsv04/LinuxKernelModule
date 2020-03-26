@@ -1,3 +1,12 @@
+/*
+ *  dev_ps.c
+ *  Contains implementation of kernel module to list process info
+ *
+ *  Author :
+ *  Sagar Vishwakarma (svishwa2@binghamton.edu)
+ *  State University of New York, Binghamton
+ */
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -42,16 +51,19 @@ static ssize_t dev_read(struct file *pfile, char __user *buffer, size_t length, 
 	int errors = 0;
 	char *message = "Hey what are you trying to read ...\n";
 	int message_len = strlen(message);
+	pid_t pid = current->pid;
 	printk(KERN_INFO "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
 
 	errors = copy_to_user(buffer, message, message_len);
+
+	printk(KERN_INFO "DEV Module: Exit %s function of Dev Character Device Driver PID %d\n", __FUNCTION__, pid);
 
 	return errors == 0 ? message_len : -EFAULT;
 }
 
 static ssize_t dev_write(struct file *pfile, const char __user *buffer, size_t length, loff_t *offset) {
 
-	printk(KERN_INFO "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
+	printk(KERN_ALERT "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
 
 	return length;
 }

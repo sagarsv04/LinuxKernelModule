@@ -1,14 +1,27 @@
-#include<stdlib.h>
-#include<signal.h>
-#include<string.h>
-#include<unistd.h>
-#include<stdio.h>
-#include<errno.h>
+/*
+ *  user.c
+ *  Contains implementation of user process accessing device node
+ *
+ *  Author :
+ *  Sagar Vishwakarma (svishwa2@binghamton.edu)
+ *  State University of New York, Binghamton
+ */
+
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <string.h>
+#include <stdio.h>
+#include <errno.h>
 
 
 
 #define DRIVER_NAME "Dev Character Device Driver"
 #define DRIVER_PATH "/dev/process_list"
+
+#define USER_SLEEP 4
+
 
 void exit_handler(int signal) {
 	printf("You have presses Ctrl-C\n");
@@ -43,6 +56,9 @@ int main(int argc, char const *argv[]) {
 			else {
 				printf(">>>: %s\n", line);
 			}
+			pid_t pid = getpid();
+			printf("Process %d sleeping for %d sec.\n", pid, USER_SLEEP);
+			sleep(USER_SLEEP);
 		}
 
 		fclose(file);
