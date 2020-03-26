@@ -24,15 +24,18 @@ File-Info
 ============
 
 1)	Makefile         - Compile the program
+2)	dev_ps.c         - Kernel Character Device Driver
+3)	user.c           - User Space C program
 
 
 How to compile and run
 ============
 
 
-Commands Supported
+Commands
 ============
-
+- Load the kernel module use      : sudo insmod dev_ps.ko
+- Unload the kernel module use    : sudo rmmod dev_ps
 
 Note
 ============
