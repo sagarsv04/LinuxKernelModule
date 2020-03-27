@@ -15,6 +15,8 @@
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/fs.h>
+#include <linux/cdev.h>
+#include <linux/device.h>
 #include <linux/slab.h>
 
 MODULE_LICENSE("GPL");
@@ -42,12 +44,16 @@ static int major_number;
 static int number_of_processes;
 static process_list *p_list;
 
+static struct cdev mycdev;
+static struct class *myclass = NULL;
+
 static int dev_open(struct inode *, struct file *);
 static ssize_t dev_read(struct file *, char *, size_t, loff_t *);
 static ssize_t dev_write(struct file *, const char *, size_t, loff_t *);
 static int dev_close(struct inode *, struct file *);
 
 static void free_process_list(void);
+static void dev_cleanup(void);
 static void get_process_info(char *, loff_t *);
 static void get_task_state_name(char *, long);
 static void create_process_list(struct task_struct *);
@@ -73,6 +79,17 @@ static void free_process_list() {
 		}
 		kfree(p_list);
 	}
+}
+
+
+static void dev_cleanup() {
+
+	/* To free char device, region, class etc */
+
+	device_destroy(myclass, major_number);
+	cdev_del(&mycdev);
+	class_destroy(myclass);
+	unregister_chrdev_region(major_number, 1);
 }
 
 
@@ -275,16 +292,39 @@ static int dev_close(struct inode *pinode, struct file *pfile) {
 	return 0;
 }
 
-static int __init dev_module_init(void) { // called when module is installed
+static int __init dev_module_init(void) {
 
 	/* kernel init module implementation, register a char driver, build the process list, called when module is installed */
 
 	struct task_struct *task = current;
 
-	major_number = register_chrdev(0, DRIVER_NAME, &dev_file_op);
-	if (major_number < 0) {
-		printk(KERN_ALERT "DEV Module: Failed to register a major number\n");
-		return major_number;
+	if (alloc_chrdev_region(&major_number, 0, 1, "dev_ps_proc") < 0) {
+		if (DRIVER_DEBUG) {
+			printk(KERN_INFO "DEV Module: Failed to allocate char region\n");
+		}
+		return -EFAULT;
+	}
+	if ((myclass = class_create(THIS_MODULE, "dev_ps_sys")) == NULL) {
+		if (DRIVER_DEBUG) {
+			printk(KERN_INFO "DEV Module: Failed to create class\n");
+		}
+		return -EFAULT;
+	}
+	if (device_create(myclass, NULL, major_number, NULL, "process_list") == NULL) {
+		if (DRIVER_DEBUG) {
+			printk(KERN_INFO "DEV Module: Failed to create device\n");
+		}
+		return -EFAULT;
+	}
+
+	cdev_init(&mycdev, &dev_file_op);
+
+	if (cdev_add(&mycdev, major_number, 1) == -1) {
+		if (DRIVER_DEBUG) {
+			printk(KERN_INFO "DEV Module: Failed to add char device\n");
+		}
+		dev_cleanup();
+		return -EFAULT;
 	}
 	else {
 		printk(KERN_INFO "DEV Module: Dev Character Device Driver Registered with major number %d\n", major_number);
@@ -298,12 +338,12 @@ static int __init dev_module_init(void) { // called when module is installed
 	return 0;
 }
 
-static void __exit dev_module_exit(void) { // called when module is removed
+static void __exit dev_module_exit(void) {
 
 	/* kernel exit module implementation, un-register the char driver, free the process list, called when module is removed */
 
 	free_process_list();
-	unregister_chrdev(major_number, DRIVER_NAME);
+	dev_cleanup();
 	printk(KERN_ALERT "DEV Module: Removed the Dev Character Device Driver\n");
 }
 

@@ -19,7 +19,7 @@
 #define DRIVER_NAME "Dev Character Device Driver"
 #define DRIVER_PATH "/dev/process_list"
 
-#define USER_SLEEP 1
+#define USER_SLEEP 10
 
 #define USER_DEBUG 0
 
