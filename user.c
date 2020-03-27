@@ -61,9 +61,9 @@ int main(int argc, char const *argv[]) {
 				if (strcmp(line, "EXIT_CODE\n")!=0) {
 					printf("-:: %s", line);
 					if (USER_DEBUG) {
-						printf("Process %d sleeping for %d sec.\n", pid, USER_SLEEP);
+						printf("Process %d sleeping for %d msec.\n", pid, USER_SLEEP);
 					}
-					sleep(USER_SLEEP);
+					usleep(USER_SLEEP * 10000);
 				}
 				else{
 					printf("Reading from the %s Completed\n", DRIVER_PATH);

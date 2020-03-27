@@ -214,38 +214,8 @@ static void create_process_list(struct task_struct *task) {
 
 	/* Create a linked list of all the current process using task */
 
-	char state_string[64];
-	process_list *temp = NULL;
-	process_list *p = NULL;
-
 	for_each_process(task) {
-		get_task_state_name(state_string, task->state);
-		temp = (process_list*)kmalloc(sizeof(process_list), GFP_KERNEL);
-		if (!temp) {
-			printk(KERN_ALERT "DEV Module: Failed to initialize memory for Process List\n");
-			return;
-		}
-		temp->node = (process_node*)kmalloc(sizeof(process_node), GFP_KERNEL);
-		if (!temp->node) {
-			printk(KERN_ALERT "DEV Module: Failed to initialize memory for Process Node\n");
-			return;
-		}
-		temp->next = NULL;
-		temp->node->process_id = task->pid;
-
-		sprintf(temp->node->process_info, "PID = %8d  PPID = %8d  CPU = %4d  STATE = %s\n", task->pid, task->parent->pid, task->cpu, state_string);
-
-		if (p_list==NULL) {
-			p_list = temp;
-		}
-		else {
-			p = p_list;
-			while (p->next!=NULL) {
-				p = p->next;
-			}
-			p->next = temp;
-		}
-		number_of_processes += 1;
+		add_to_process_list(task);
 	}
 }
 
