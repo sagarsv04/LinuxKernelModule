@@ -22,6 +22,8 @@ MODULE_AUTHOR("Sagar Vishwakarma");
 MODULE_DESCRIPTION("A simple Linux Character Device Driver");
 MODULE_VERSION("1.0");
 
+#define DRIVER_DEBUG 0
+
 #define DRIVER_NAME "dev_ps"
 #define STATE_STR_LEN 64
 #define PROCESS_STR_LEN 128
@@ -38,7 +40,6 @@ typedef struct process_list {
 
 static int major_number;
 static int number_of_processes;
-// static int number_of_read = 0;
 static process_list *p_list;
 
 static int dev_open(struct inode *, struct file *);
@@ -63,14 +64,21 @@ static struct file_operations dev_file_op = {
 
 
 static void free_process_list() {
+
+	/* To free the global head of the link list */
+
 	if (p_list) {
-		printk(KERN_INFO "DEV Module: Releasing memory for Process List\n");
+		if (DRIVER_DEBUG) {
+			printk(KERN_INFO "DEV Module: Releasing memory for Process List\n");
+		}
 		kfree(p_list);
 	}
 }
 
 
 static void get_task_state_name(char *state_string, long state) {
+
+	/* Switch Case to find string representation of sate code */
 
 	switch (state) {
 		case TASK_RUNNING:
@@ -125,6 +133,9 @@ static void get_task_state_name(char *state_string, long state) {
 			strcpy(state_string, "TASK_INTERRUPTIBLE, TASK_UNINTERRUPTIBLE");
 			break;
 		default:
+			if (DRIVER_DEBUG) {
+				printk(KERN_ALERT "DEV Module: Failed to find state string for %ld\n", state);
+			}
 			strcpy(state_string, "UNKNOWN_STATE");
 			break;
 	}
@@ -132,11 +143,15 @@ static void get_task_state_name(char *state_string, long state) {
 
 
 static void get_process_info(char *message, loff_t *offset) {
+
 	/* Pass process Info based on how many lines already read */
+
 	int skip_node = (int)(*offset);
 	process_list *p = p_list;
 	if (p==NULL) {
-		printk(KERN_ALERT "DEV Module: Empty Process List\n");
+		if (DRIVER_DEBUG) {
+			printk(KERN_ALERT "DEV Module: Empty Process List\n");
+		}
 		strcpy(message, "EXIT_CODE\n");
 	}
 	else {
@@ -145,7 +160,9 @@ static void get_process_info(char *message, loff_t *offset) {
 			p = p->next;
 		}
 		if (p==NULL) {
-			printk(KERN_ALERT "DEV Module: Empty Process Node\n");
+			if (DRIVER_DEBUG) {
+				printk(KERN_ALERT "DEV Module: Empty Process Node\n");
+			}
 			strcpy(message, "EXIT_CODE\n");
 		}
 		else {
@@ -156,7 +173,9 @@ static void get_process_info(char *message, loff_t *offset) {
 }
 
 static void add_to_process_list(struct task_struct *task) {
+
 	/* Add new process to linked list */
+
 	char state_string[64];
 	process_list *temp = NULL;
 	process_list *p = NULL;
@@ -192,6 +211,7 @@ static void add_to_process_list(struct task_struct *task) {
 
 
 static void create_process_list(struct task_struct *task) {
+
 	/* Create a linked list of all the current process using task */
 
 	char state_string[64];
@@ -232,20 +252,19 @@ static void create_process_list(struct task_struct *task) {
 
 static int dev_open(struct inode *pinode, struct file *pfile) {
 
+	/* file_operations open implementation, adding the calling program to the link list */
+
 	pid_t pid;
-
 	struct task_struct *task = current;
-	printk(KERN_INFO "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
-	add_to_process_list(task);
+	add_to_process_list(task); // at this point add the current invoking process into the list
 	pid = task->pid;
-	printk(KERN_INFO "DEV Module: Hey Seems Process %d has arrived\n", pid);
-
-	// at this point add that process into the list
-
+	printk(KERN_INFO "DEV Module: Process %d has called %s function of Dev Character Device Driver\n", pid, __FUNCTION__);
 	return 0;
 }
 
 static ssize_t dev_read(struct file *pfile, char __user *buffer, size_t length, loff_t *offset) {
+
+	/* file_operations read implementation, copy process info to user space */
 
 	int errors = 0;
 	char message[PROCESS_STR_LEN];
@@ -255,37 +274,44 @@ static ssize_t dev_read(struct file *pfile, char __user *buffer, size_t length, 
 	pid = current->pid;
 	get_process_info(message, offset);
 	message_len = strlen(message);
-	printk(KERN_INFO "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
-
 	errors = copy_to_user(buffer, message, message_len);
-
-	printk(KERN_INFO "DEV Module: Hey Seems Process %d has Offset %lld\n", pid, *offset);
+	if (DRIVER_DEBUG) {
+		printk(KERN_INFO "DEV Module: Process %d has called %s function with Offset %lld\n", pid, __FUNCTION__, *offset);
+	}
 	return errors == 0 ? message_len : -EFAULT;
 }
 
 static ssize_t dev_write(struct file *pfile, const char __user *buffer, size_t length, loff_t *offset) {
 
-	printk(KERN_ALERT "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
+	/* file_operations write implementation, does nothing for now */
 
+	pid_t pid;
+	struct task_struct *task = current;
+	pid = task->pid;
+	if (DRIVER_DEBUG) {
+		printk(KERN_INFO "DEV Module: Process %d has called %s function of Dev Character Device Driver\n", pid, __FUNCTION__);
+	}
 	return length;
 }
 
 static int dev_close(struct inode *pinode, struct file *pfile) {
 
-	printk(KERN_INFO "DEV Module: Inside %s function of Dev Character Device Driver\n", __FUNCTION__);
-	// number_of_read = 0;
-	// at this point remove that process into the list
+	/* file_operations close implementation, we can remove the current process from the list */
 
+	pid_t pid;
+	struct task_struct *task = current;
+	pid = task->pid;
+	printk(KERN_INFO "DEV Module: Process %d has called %s function of Dev Character Device Driver\n", pid, __FUNCTION__);
 	return 0;
 }
 
 static int __init dev_module_init(void) { // called when module is installed
 
+	/* kernel init module implementation, register a char driver, build the process list, called when module is installed */
+
 	struct task_struct *task = current;
 
-	printk(KERN_INFO "DEV Module: Initializing the Dev Character Device Driver\n");
-
-	major_number = register_chrdev(0, DRIVER_NAME, &dev_file_op); // Registering with Kernel a Character Device Driver
+	major_number = register_chrdev(0, DRIVER_NAME, &dev_file_op);
 	if (major_number < 0) {
 		printk(KERN_ALERT "DEV Module: Failed to register a major number\n");
 		return major_number;
@@ -294,7 +320,9 @@ static int __init dev_module_init(void) { // called when module is installed
 		printk(KERN_INFO "DEV Module: Dev Character Device Driver Registered with major number %d\n", major_number);
 		if (task) {
 			create_process_list(task);
-			printk(KERN_INFO "DEV Module: Number of Process Added to List %d\n", number_of_processes);
+			if (DRIVER_DEBUG) {
+				printk(KERN_INFO "DEV Module: Number of Process Added to List %d\n", number_of_processes);
+			}
 		}
 	}
 	return 0;
@@ -302,10 +330,11 @@ static int __init dev_module_init(void) { // called when module is installed
 
 static void __exit dev_module_exit(void) { // called when module is removed
 
+	/* kernel exit module implementation, un-register the char driver, free the process list, called when module is removed */
+
 	free_process_list();
-	printk(KERN_ALERT "DEV Module: Removing the Dev Character Device Driver\n");
 	unregister_chrdev(major_number, DRIVER_NAME);
-	printk(KERN_INFO "DEV Module: Goodbye From Dev Character Device Driver!\n");
+	printk(KERN_ALERT "DEV Module: Removed the Dev Character Device Driver\n");
 }
 
 module_init(dev_module_init);

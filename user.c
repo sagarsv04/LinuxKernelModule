@@ -16,11 +16,12 @@
 #include <errno.h>
 
 
-
 #define DRIVER_NAME "Dev Character Device Driver"
 #define DRIVER_PATH "/dev/process_list"
 
-#define USER_SLEEP 0
+#define USER_SLEEP 1
+
+#define USER_DEBUG 0
 
 
 void exit_handler(int signal) {
@@ -44,7 +45,9 @@ int main(int argc, char const *argv[]) {
 		return errno;
 	}
 	else {
-		printf("Reading from the %s\n", DRIVER_PATH);
+		if (USER_DEBUG) {
+			printf("Reading from the %s\n", DRIVER_PATH);
+		}
 
 		signal(SIGINT, exit_handler);
 		while (1) {
@@ -54,10 +57,12 @@ int main(int argc, char const *argv[]) {
 				return errno;
 			}
 			else {
-				// pid_t pid = getpid();
+				pid_t pid = getpid();
 				if (strcmp(line, "EXIT_CODE\n")!=0) {
-					printf(">>>: %s", line);
-					// printf("Process %d sleeping for %d sec.\n", pid, USER_SLEEP);
+					printf("-:: %s", line);
+					if (USER_DEBUG) {
+						printf("Process %d sleeping for %d sec.\n", pid, USER_SLEEP);
+					}
 					sleep(USER_SLEEP);
 				}
 				else{
