@@ -3,31 +3,28 @@
 A simple Character Device Driver to List Processes.
 
 
-Author :
-============
+## Author :
+
 Sagar Vishwakarma (svishwa2@binghamton.edu)
 
 State University of New York, Binghamton
 
 
-Files :
-============
+## Files :
 
 1)	Makefile         - Compile the program
 2)	dev_ps.c         - Kernel Character Device Driver
 3)	user.c           - User Space C program
 
 
-Flags :
-============
+## Flags :
 
 - DRIVER_DEBUG      - To print additional information happening in kernel program
 - USER_SLEEP        - Wait in user space program between each read
 - USER_DEBUG        - To print additional information happening in user program
 
 
-Run :
-============
+## Run :
 
 - Open a terminal in project directory      : make (to build both kernel and user module)
 - Load the kernel module use                : sudo insmod dev_ps.ko
@@ -44,8 +41,7 @@ Run :
 - To remove node : sudo rm process_list
 
 
-Note
-============
+## Note :
 
 - I have implemented a simple Character Driver which lists processes
 	eg: PID=1 PPID=0 CPU=4 STATE=TASK_RUNNING
